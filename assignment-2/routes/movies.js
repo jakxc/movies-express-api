@@ -81,45 +81,27 @@ router.get("/data/:imdbID", function (req, res, next) {
   }
 
   req.db
-    .from("basics", "crew", "names", "principals", "ratings")
+    .from("basics")
     .select("*")
     .where((builder) => {
       if (imdbID) {
-        builder.where("primaryTitle", "=", imdbID);
-      }
-
-      if (year) {
-        builder.where("startYear", year);
+        builder.where("tconst", "=", imdbID);
       }
     })
-    .orderBy("startYear")
-    .offset(offset)
-    .limit(limit)
     .then((rows) => {
       const mappedData = rows.map(row => {
         return {
           "Title": row["primaryTitle"],
           "Year": row["startYear"],
-          "imdbId": row["tconst"],
-          "Type": row["titleType"]
+          "Runtime": row["runtimeMinutes"],
+          "Genre": row["genres"]
         }
       })
 
-      const paginationData = {
-        "total": rows.length,
-        "lastPage": Math.ceil(rows.length / limit),
-        "perPage": limit,
-        "currentPage": page,
-        "from": Math.min(offset * 100, rows.length),
-        "to": Math.min((offset * 100) + 100, rows.length)
-      }
-
-      res.json({ 
-        error: false, 
-        Message: "Success", 
-        data: mappedData,
-        pagination: paginationData
-      });
+      return mappedData
+    })
+    .then(data => {
+      console.log(data);
     })
     .catch((err) => res.status(500).json({ error: true, Message: 'Error in MySQL query' }));
 });
