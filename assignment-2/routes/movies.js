@@ -67,7 +67,7 @@ router.get("/search", function (req, res, next) {
           pagination: paginationData
         });
       })
-      .catch((err) => res.status(500).json({ error: true, Message: 'Error in MySQL query' }));
+      .catch((err) => res.status(500).json({ error: true, Message: err.message }));
 });
 
 
@@ -89,7 +89,7 @@ router.get("/data/:imdbID", function (req, res, next) {
       }
     })
     .then((rows) => {
-      const mappedData = rows.map(row => {
+      const basicsData = rows.map(row => {
         return {
           "Title": row["primaryTitle"],
           "Year": row["startYear"],
@@ -98,12 +98,45 @@ router.get("/data/:imdbID", function (req, res, next) {
         }
       })
 
-      return mappedData
+      return basicsData[0];
     })
-    .then(data => {
-      console.log(data);
+    .then(basicsData => {
+      return req.db
+        .from("principals")
+        .join("names", "principals.nconst", "=", "names.nconst")
+        .select("tconst", "names.primaryName", "principals.category")
+        .where("tconst", "=", imdbID)
+        .then(rows => {
+          rows.forEach(row => {
+            const category = row["category"][0].toUpperCase() + row["category"].slice(1);
+            basicsData[category] ?  basicsData[category] += `,${row["primaryName"]}` : basicsData[category] = row["primaryName"];
+          })
+
+          return basicsData;
+        })
     })
-    .catch((err) => res.status(500).json({ error: true, Message: 'Error in MySQL query' }));
+    .then(basicsAndPrincipalsData => {
+      return req.db
+        .from("ratings")
+        .select("averageRating")
+        .where("tconst", "=", imdbID)
+        .then(rows => {
+          rows.forEach(row => {
+            const rating = {
+              "Source": "Internet Movie Database",
+              "Value": `${row["averageRating"]}/10`
+            }
+
+            basicsAndPrincipalsData["Ratings"] 
+            ? basicsAndPrincipalsData["Ratings"].push(rating) 
+            :  basicsAndPrincipalsData["Ratings"] = [rating];
+          })
+
+          return basicsAndPrincipalsData;
+        })
+    })
+    .then(combinedData => res.json(combinedData))
+    .catch((err) => res.status(500).json({ error: true, Message: err.message }));
 });
 
 
