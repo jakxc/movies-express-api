@@ -4,7 +4,9 @@ var path = require("path");
 var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 
-var { errorLogger, errorResponder, invalidPathHandler } = require("./utils");
+var { errorLogger, errorResponder, invalidPathHandler } = require("./middleware/errorHandler.js");
+var { fileSender } = require("./middleware/fileHandler.js");
+
 const options = require("./knexfile.js");
 const knex = require("knex")(options);
 const cors = require('cors');
@@ -12,6 +14,7 @@ const cors = require('cors');
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
 var moviesRouter = require("./routes/movies");
+var postersRouter = require("./routes/posters.js");
 
 var app = express();
 
@@ -25,14 +28,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(__dirname+"posters"));
+
 app.use((req, res, next) => {
     req.db = knex;
     next();
 });
 
+app.use("/posters/:imdbID", fileSender);
+
 app.use("/", indexRouter);
 app.use("/users", usersRouter);
 app.use("/movies", moviesRouter);
+app.use("/posters", postersRouter);
 
 app.get("/knex", function (req, res, next) {
     req.db
@@ -46,13 +54,14 @@ app.get("/knex", function (req, res, next) {
     res.send("Version Logged successfully");
 });
 
-// Attach the first Error handling Middleware
+
+// Console logs the error
 app.use(errorLogger);
 
-// Attach the second Error handling Middleware
+// Responses with error status code and object
 app.use(errorResponder);
 
-// Attach the fallback Middleware
+// Responses with error status code for invalid routes
 app.use(invalidPathHandler);
 
 // // catch 404 and forward to error handler

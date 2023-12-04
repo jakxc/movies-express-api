@@ -1,7 +1,6 @@
 var express = require("express");
 var router = express.Router();
 
-
 /* GET home page. */
 router.get('/', function(req, res, next) {
   res.render('index', { title: 'Movies' });
@@ -21,7 +20,13 @@ router.get("/search", function (req, res, next) {
     }
 
     if (year && !parseInt(year)) {
-      let error = new Error("Invalid year format!");
+      let error = new Error("Invalid year format. Format must be yyyy.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (page && !parseInt(page)) {
+      let error = new Error("Invalid page format!");
       error.statusCode = 400;
       throw error;
     }
@@ -67,11 +72,15 @@ router.get("/search", function (req, res, next) {
           pagination: paginationData
         });
       })
-      .catch((err) => res.status(500).json({ error: true, Message: err.message }));
+      .catch((err) => {
+        let error = new Error(err.message);
+        error.statusCode = 500;
+        throw error;
+      });
 });
 
 
-router.get("/data/:imdbID", function (req, res, next) {
+router.get("/data/:imdbID?", function (req, res, next) {
   const imdbID = req.params.imdbID;
 
   if (!imdbID) {
@@ -136,7 +145,11 @@ router.get("/data/:imdbID", function (req, res, next) {
         })
     })
     .then(combinedData => res.json(combinedData))
-    .catch((err) => res.status(500).json({ error: true, Message: err.message }));
+    .catch((err) => {
+      let error = new Error(err.message);
+      error.statusCode = 500;
+      throw error;
+    });
 });
 
 
