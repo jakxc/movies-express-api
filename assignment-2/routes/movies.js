@@ -77,6 +77,8 @@ router.get("/search", function (req, res, next) {
         error.statusCode = 500;
         throw error;
       });
+    // console.log("Getting movie by title");
+    // next();
 });
 
 
@@ -150,6 +152,8 @@ router.get("/data/:imdbID?", function (req, res, next) {
       error.statusCode = 500;
       throw error;
     });
+  // console.log("Getting movie by ID");
+  // next();
 });
 
 

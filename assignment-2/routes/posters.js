@@ -10,7 +10,8 @@ const bodyParser = require("body-parser");
 // });
 
 router.get("/:imdbID?", function (req, res, next) {
-  const params = req.params
+  console.log("Getting poster...");
+  const params = req.params;
 
   if (Object.keys(params).length > 1) {
     const invalidParams = Object.keys(params).filter(el => el !== "imdbID").join(", ");

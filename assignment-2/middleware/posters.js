@@ -1,21 +1,23 @@
 var path = require("path");
 
-const fileSender = (req, res, next) => {
+const getPosterById = (req, res, next) => {
     const options = {
         root: path.join(__dirname, "../posters")
     };
- 
+
     const params = req.params;
-    res.sendFile(`/${params["imdbID"]}.png`, options, function (err) {
+    const fileName = `/${params["imdbID"]}.png`
+
+    res.sendFile(fileName, options, function (err) {
         if (err) {
             next(err);
         } else {
-            console.log('Sent:', fileName);
+            console.log("Sent " + fileName);
             next();
         }
     });
 }
 
 module.exports = {
-    fileSender: fileSender
+    getPosterById: getPosterById
 }
