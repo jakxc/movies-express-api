@@ -5,7 +5,6 @@ var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 
 var { errorLogger, errorResponder, invalidPathHandler } = require("./middleware/errors.js");
-var { getMovieByTitle, getMovieById } = require("./middleware/movies.js")
 var { getPosterById } = require("./middleware/posters.js");
 
 const options = require("./knexfile.js");
@@ -37,9 +36,9 @@ app.use((req, res, next) => {
 });
 
 app.use("/", indexRouter);
-app.use("/users", usersRouter);
+app.use("/user", usersRouter);
 app.use("/movies", moviesRouter,);
-app.use("/posters/:imdbID?", getPosterById, postersRouter);
+app.use("/posters", postersRouter);
 
 
 app.get("/knex", function (req, res, next) {

@@ -1,55 +1,63 @@
 const getMovieByTitle = (req, res, next) => {
-    const title = req.query.title;
-    const year = req.query.year; //either a value or undefined
-    const page = req.query.page || 1;
+    const query = req.query;
+    const title = query.title;
+    const year = query.year;
+    const page = query.page || 1;
     const limit = 100;
     const offset = (page - 1) * 100;
+    const invalidQueries = Object.keys(query).filter(el => el !== "title" && el !== "year" && el !== "page"); 
+
+    // console.log("Number of querues: " + Object.keys(query).length);
+    if (invalidQueries.length) {
+        let error = new Error(`Invalid query parameters: ${invalidQueries.join(", ")}. Query parameters are not permitted.`);
+        error.statusCode = 400;
+        next(error);
+    }
 
     if (!title) {
         let error = new Error("You must provide a title!");
         error.statusCode = 400;
-        throw error;
+        next(error);
     }
 
     if (year && !parseInt(year)) {
         let error = new Error("Invalid year format. Format must be yyyy.");
         error.statusCode = 400;
-        throw error;
+        next(error);
     }
 
     if (page && !parseInt(page)) {
         let error = new Error("Invalid page format!");
         error.statusCode = 400;
-        throw error;
+        next(error);
     }
 
     req.db
         .from("basics")
         .select("tconst", "titleType", "primaryTitle", "startYear")
         .where((builder) => {
-        if (title) {
-            builder.where("primaryTitle", "like", `%${title}%`);
-        }
-
-        if (year) {
-            builder.where("startYear", year);
-        }
-    })
-    .orderBy("startYear")
-    .offset(offset)
-    .limit(limit)
-    .then((rows) => {
-        const mappedData = rows.map(row => {
-            return {
-            "Title": row["primaryTitle"],
-            "Year": row["startYear"],
-            "imdbId": row["tconst"],
-            "Type": row["titleType"]
+            if (title) {
+                builder.where("primaryTitle", "like", `%${title}%`);
             }
-        })
+
+            if (year) {
+                builder.where("startYear", year);
+            }
+        }) 
+        .offset(offset)
+        .limit(limit)
+        .then((rows) => {
+            const mappedData = rows.map(row => {
+                return {
+                "Title": row["primaryTitle"],
+                "Year": row["startYear"],
+                "imdbId": row["tconst"],
+                "Type": row["titleType"]
+                }
+            })
 
         const paginationData = {
-            "total": rows.length,
+            "total": rows.count,
             "lastPage": Math.ceil(rows.length / limit),
             "perPage": limit,
             "currentPage": page,
@@ -58,29 +66,24 @@ const getMovieByTitle = (req, res, next) => {
         }
 
         res.json({ 
-            error: false, 
-            Message: "Success", 
             data: mappedData,
             pagination: paginationData
         });
-
-        next();
     })
     .catch((err) => {
         let error = new Error(err.message);
         error.statusCode = 500;
-        throw error;
+        next(error);
     });
 }
 
-
 const getMovieById = (req, res, next)  => {
-    const imdbID = req.params.imdbID;
+    const { imdbID } = req.params;
 
     if (!imdbID) {
         let error = new Error("You must provide an imdb ID!");
         error.statusCode = 400;
-        throw error;
+        next(error);
     }
 
     req.db
@@ -107,8 +110,8 @@ const getMovieById = (req, res, next)  => {
             return req.db
                 .from("principals")
                 .join("names", "principals.nconst", "=", "names.nconst")
-                .select("tconst", "names.primaryName", "principals.category")
-                .where("tconst", "=", imdbID)
+                .select("principals.tconst", "names.primaryName", "principals.category")
+                .where("principals.tconst", "=", imdbID)
                 .then(rows => {
                 rows.forEach(row => {
                     const category = row["category"][0].toUpperCase() + row["category"].slice(1);
@@ -140,12 +143,11 @@ const getMovieById = (req, res, next)  => {
         })
         .then(combinedData => {
             res.json(combinedData);
-            next();
         })
         .catch((err) => {
             let error = new Error(err.message);
             error.statusCode = 500;
-            throw error;
+            next(error);
         });
 }
 
