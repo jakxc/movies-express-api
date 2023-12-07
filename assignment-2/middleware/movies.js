@@ -1,4 +1,4 @@
-const getMovieByTitle = (req, res, next) => {
+const getMovieByTitle = async (req, res, next) => {
     const query = req.query;
     const title = query.title;
     const year = query.year;
@@ -10,31 +10,34 @@ const getMovieByTitle = (req, res, next) => {
     // console.log("Number of querues: " + Object.keys(query).length);
     if (invalidQueries.length) {
         let error = new Error(`Invalid query parameters: ${invalidQueries.join(", ")}. Query parameters are not permitted.`);
-        error.statusCode = 400;
+        error.status = 400;
         next(error);
+        return;
     }
 
     if (!title) {
         let error = new Error("You must provide a title!");
-        error.statusCode = 400;
+        error.status = 400;
         next(error);
+        return;
     }
 
     if (year && !parseInt(year)) {
         let error = new Error("Invalid year format. Format must be yyyy.");
-        error.statusCode = 400;
+        error.status = 400;
         next(error);
+        return;
     }
 
     if (page && !parseInt(page)) {
         let error = new Error("Invalid page format!");
-        error.statusCode = 400;
+        error.status = 400;
         next(error);
+        return;
     }
 
-    req.db
-        .from("basics")
-        .select("tconst", "titleType", "primaryTitle", "startYear")
+    try {
+        const totalCount = await req.db("basics")
         .where((builder) => {
             if (title) {
                 builder.where("primaryTitle", "like", `%${title}%`);
@@ -43,112 +46,118 @@ const getMovieByTitle = (req, res, next) => {
             if (year) {
                 builder.where("startYear", year);
             }
-        }) 
+        })
+        .count("tconst as count")
+        .then(res => res.reduce((acc, curr) => acc + curr.count, 0));
+
+        const pageResults = await req.db("basics")
+        .where((builder) => {
+            if (title) {
+                builder.where("primaryTitle", "like", `%${title}%`);
+            }
+
+            if (year) {
+                builder.where("startYear", year);
+            }
+        })
+        .select("tconst", "primaryTitle", "startYear", "titleType")
         .offset(offset)
         .limit(limit)
-        .then((rows) => {
-            const mappedData = rows.map(row => {
-                return {
+
+        const mappedData = pageResults.map(row => {
+            return {
                 "Title": row["primaryTitle"],
                 "Year": row["startYear"],
                 "imdbId": row["tconst"],
                 "Type": row["titleType"]
-                }
-            })
+            }
+        })
 
         const paginationData = {
-            "total": rows.count,
-            "lastPage": Math.ceil(rows.length / limit),
+            "total": totalCount,
+            "lastPage": Math.ceil(totalCount / limit),
             "perPage": limit,
             "currentPage": page,
-            "from": Math.min(offset * 100, rows.length),
-            "to": Math.min((offset * 100) + 100, rows.length)
+            "from": Math.min((page - 1) * limit, totalCount),
+            "to": Math.min(page * limit, totalCount)
         }
 
         res.json({ 
             data: mappedData,
             pagination: paginationData
         });
-    })
-    .catch((err) => {
-        let error = new Error(err.message);
-        error.statusCode = 500;
+    } catch (e) {
+        let error = new Error(e.message);
+        error.status = 500;
         next(error);
-    });
+    }
 }
 
-const getMovieById = (req, res, next)  => {
+const getMovieById = async (req, res, next)  => {
     const { imdbID } = req.params;
 
     if (!imdbID) {
         let error = new Error("You must provide an imdb ID!");
-        error.statusCode = 400;
+        error.status = 400;
         next(error);
+        return;
     }
 
-    req.db
-        .from("basics")
+    try {
+        const combinedResults = await req.db("basics")
         .select("*")
         .where((builder) => {
-        if (imdbID) {
-            builder.where("tconst", "=", imdbID);
-        }
+            if (imdbID) {
+                builder.where("tconst", "=", imdbID);
+            }
         })
         .then((rows) => {
-            const basicsData = rows.map(row => {
+            const mappedData = rows.map(row => {
                 return {
-                "Title": row["primaryTitle"],
-                "Year": row["startYear"],
-                "Runtime": row["runtimeMinutes"],
-                "Genre": row["genres"]
+                    "Title": row["primaryTitle"],
+                    "Year": row["startYear"],
+                    "Runtime": row["runtimeMinutes"],
+                    "Genre": row["genres"]
                 }
             })
 
-            return basicsData[0];
+            return mappedData;
         })
-        .then(basicsData => {
-            return req.db
-                .from("principals")
-                .join("names", "principals.nconst", "=", "names.nconst")
-                .select("principals.tconst", "names.primaryName", "principals.category")
-                .where("principals.tconst", "=", imdbID)
-                .then(rows => {
-                rows.forEach(row => {
-                    const category = row["category"][0].toUpperCase() + row["category"].slice(1);
-                    basicsData[category] ?  basicsData[category] += `,${row["primaryName"]}` : basicsData[category] = row["primaryName"];
-                })
 
-                return basicsData;
+        const basicsAndPrincipalsResults = await req.db("principals")
+        .join("names", "principals.nconst", "=", "names.nconst")
+        .select("principals.tconst", "names.primaryName", "principals.category")
+        .where("principals.tconst", "=", imdbID)
+
+        basicsAndPrincipalsResults.forEach(row => {
+            const category = row["category"][0].toUpperCase() + row["category"].slice(1);
+            combinedResults.map(el => {
+                el[category] ?  el[category] += `,${row["primaryName"]}` 
+                : el[category] = row["primaryName"];
             })
         })
-        .then(basicsAndPrincipalsData => {
-            return req.db
-                .from("ratings")
-                .select("averageRating")
-                .where("tconst", "=", imdbID)
-                .then(rows => {
-                rows.forEach(row => {
-                    const rating = {
-                    "Source": "Internet Movie Database",
-                    "Value": `${row["averageRating"]}/10`
-                    }
 
-                    basicsAndPrincipalsData["Ratings"] 
-                    ? basicsAndPrincipalsData["Ratings"].push(rating) 
-                    :  basicsAndPrincipalsData["Ratings"] = [rating];
-                })
+        const ratingsResults = await req.db("ratings")
+        .select("averageRating")
+        .where("tconst", "=", imdbID);
 
-                return basicsAndPrincipalsData;
-                })
+        ratingsResults.forEach(row => {
+            const rating = {
+            "Source": "Internet Movie Database",
+            "Value": `${row["averageRating"]}/10`
+            }
+
+            combinedResults.map(el => el["Ratings"] 
+            ? el["Ratings"].push(rating) 
+            : el["Ratings"] = [rating]);
         })
-        .then(combinedData => {
-            res.json(combinedData);
-        })
-        .catch((err) => {
-            let error = new Error(err.message);
-            error.statusCode = 500;
-            next(error);
-        });
+
+        res.json(combinedResults);
+    } catch (e) {
+        let error = new Error(e.message);
+        error.status = 500;
+        next(error);
+    }
 }
 
 module.exports = {

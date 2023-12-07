@@ -1,20 +1,22 @@
 var path = require("path");
+const { getUser } = require("../middleware/auth.js")
 var { writeFile } = require("fs");
 
-const getPosterById = (req, res, next) => {
+const getPosterById = (user, req, res, next) => {
     const options = {
         root: path.join(__dirname, "../posters")
     };
 
-    const params = req.params;
-    const fileName = `/${params["imdbID"]}.png`
+    // const user = getUser(req, res, next);
+    const { imdbID } = req.params;
+    const fileName = `/${imdbID}_${user}.png`
 
-    res.sendFile(fileName, options, function (err) {
-        if (err) {
-            let error = new Error(err);
+    res.sendFile(fileName, options, (e) => {
+        if (e) {
+            let error = new Error("Unable to retrieve poster for this movie!");
             error.statusCode = 400;
-            req.error = error;
-            next();
+            next(error);
+            return;
         } else {
             console.log("Sent " + fileName);
             next();
@@ -22,8 +24,9 @@ const getPosterById = (req, res, next) => {
     });
 }
 
-const addPosterToMovie = (req, res, next) => {
+const addPosterToMovie = (user, req, res, next) => {
     const { imdbID } = req.params;
+    // const user = getUser(req, res, next);
 
     if (!imdbID) {
         let error = new Error("You must provide an imdb ID!");
@@ -32,21 +35,21 @@ const addPosterToMovie = (req, res, next) => {
     }
 
     try {
-        writeFile(`./posters/${imdbID}.png`, req.body, (err) => {
-            if (err) {
-                let error = new Error(err.message);
-                error.statusCode = 400;
+        writeFile(`./posters/${imdbID}_${user}.png`, req.body, (e) => {
+            if (e) {
+                let error = new Error(e.message);
+                error.status = 400;
                 next(error);
             } else {
-                res.json({
+                res.status(201).json({
                     "error": false,
                     "message": "Poster Uploaded Successfully"
                 });
             }
         });
-    } catch (err) {
-        let error = new Error(err.message);
-        error.statusCode = 500;
+    } catch (e) {
+        let error = new Error(e.message);
+        error.status = 500;
         next(error);
     }
 }

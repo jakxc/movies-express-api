@@ -8,22 +8,21 @@ router.get('/', function(req, res, next) {
 });
 
 
-router.get("/search", getMovieByTitle, (req, res, next) => {
-  if (req.error) {
-    throw req.error;
+router.get("/search", getMovieByTitle, (error, req, res, next) => {
+  if (error) {
+    throw error;
   }
-    // console.log("Getting movie by title");
-  res.send();
+
+  console.log("Getting movie by title");
 });
 
 
-router.get("/data/:imdbID?", getMovieById, (req, res, next) => {
-  if (req.error) {
-    throw req.error;
+router.get("/data/:imdbID?", getMovieById, (error, req, res, next) => {
+  if (error) {
+    throw error;
   }
 
-    // console.log("Getting movie by title");
-  res.send();
+  console.log("Getting movie by id");
 });
 
 
