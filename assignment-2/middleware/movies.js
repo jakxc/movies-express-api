@@ -1,3 +1,10 @@
+/**
+ *Retrieves data for movies that matches title, year and page parameters from request url
+ *
+ * @param {obj} req The request object
+ * @param {obj} res The response object
+ * @param {obj} rnext Method to move to next middleware
+ */
 const getMovieByTitle = async (req, res, next) => {
     const query = req.query;
     const title = query.title;
@@ -82,7 +89,7 @@ const getMovieByTitle = async (req, res, next) => {
             "to": Math.min(page * limit, totalCount)
         }
 
-        res.json({ 
+        return res.json({ 
             data: mappedData,
             pagination: paginationData
         });
@@ -93,6 +100,13 @@ const getMovieByTitle = async (req, res, next) => {
     }
 }
 
+/**
+ *Retrieves data for movie that matches imdbID from request url
+ *
+ * @param {obj} req The request object
+ * @param {obj} res The response object
+ * @param {obj} rnext Method to move to next middleware
+ */
 const getMovieById = async (req, res, next)  => {
     const { imdbID } = req.params;
 
@@ -152,7 +166,7 @@ const getMovieById = async (req, res, next)  => {
             : el["Ratings"] = [rating]);
         })
 
-        res.json(combinedResults);
+        return res.json(combinedResults);
     } catch (e) {
         let error = new Error(e.message);
         error.status = 500;

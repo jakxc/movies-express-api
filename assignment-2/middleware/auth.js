@@ -1,6 +1,13 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcrypt");
 
+/**
+ * Handles verification of Bearer authentication in request header
+ *
+ * @param {obj} req The request object
+ * @param {obj} res The response object
+ * @return {obj} next Method to move to next middleware
+ */
 const handleAuthorization = (req, res, next) => {
     if (!("authorization" in req.headers) || !req.headers.authorization.match(/^Bearer /)) {
         let error = new Error("Authorization header ('Bearer token') not found");
@@ -24,13 +31,21 @@ const handleAuthorization = (req, res, next) => {
             next(error);
             return;
         }
+
         return;
     }
 
     next();
 };
 
-const handleRegister = (req, res, next) => {
+/**
+ * Handles inserting new user emal and password hash into database
+ *
+ * @param {obj} req The request object
+ * @param {obj} res The response object
+ * @return {obj} next Method to move to next middleware
+ */
+const handleRegister = async (req, res, next) => {
     // Retrieve email and password from req.body
     const { email, password }  = req.body;
 
@@ -43,25 +58,30 @@ const handleRegister = (req, res, next) => {
     }
 
     // Determine if user already exists in table
-    const queryUsers = req.db.from("users").select("*").where("email", "=", email);
-    queryUsers.then(users => {
-        if (users.length > 0) {
+    const queryUsers = await req.db.from("users").select("*").where("email", "=", email);
+    if (queryUsers.length > 0) {
             let error = new Error("User already exists");
             error.status = 409;
             next(error);
             return;
-        }
-
+    } else {
         // Insert user into DB
         const saltRounds = 10;
         const hash = bcrypt.hashSync(password, saltRounds);
-        return req.db.from("users").insert({ email, hash });
-    })
-    .then(() => {
-        res.status(201).json({ success: true, message: "User created" });
-    });
+        req.db.from("users").insert({ email, hash })
+        .then(() => {
+          return res.status(201).json({ success: true, message: "User created" });
+      });
+    }
 }
 
+/**
+ * Handles verification of user and generates bearer token on successful login
+ *
+ * @param {obj} req The request object
+ * @param {obj} res The response object
+ * @return {obj} next Method to move to next middleware
+ */
 const handleLogin = (req, res, next) => {  
   const { email, password } = req.body;
 
@@ -98,7 +118,7 @@ const handleLogin = (req, res, next) => {
       const exp = Math.floor(Date.now() / 1000) + expires_in;
       const token = jwt.sign({ email, exp }, process.env.JWT_SECRET);
       
-      res.status(200).json({
+      return res.status(200).json({
         token,
         token_type: "Bearer",
         expires_in
@@ -106,15 +126,24 @@ const handleLogin = (req, res, next) => {
     });
 };
 
-const getUser = (error, req, res, next) => {
-  if (error) {
-    next(error);
-    return;
-  }
-  
+/**
+ * Gets user property from token in request header
+ *
+ * @param {obj} req The request object
+ * @param {obj} res The response object
+ * @return {obj} next Method to move to next middleware
+ */
+const getUser = (req, res, next) => {  
   const token = req.headers.authorization.replace(/^Bearer /, "");
   const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
   const user = decodedToken["email"];
+  
+  if (!user) {
+    let error = new Error("Unable to retrieve user");
+    error.status = 500;
+    next(error);
+    return;
+  }
 
   next(user);
 }

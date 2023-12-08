@@ -1,7 +1,14 @@
 var path = require("path");
-const { getUser } = require("../middleware/auth.js")
 var { writeFile } = require("fs");
 
+/**
+ *Retrieves poster image of movie that matches imdbID from request url
+ *
+ * @param {obj} user Value of user property from token in request header
+ * @param {obj} req The request object
+ * @param {obj} res The response object
+ * @param {obj} rnext Method to move to next middleware
+ */
 const getPosterById = (user, req, res, next) => {
     const options = {
         root: path.join(__dirname, "../posters")
@@ -11,7 +18,7 @@ const getPosterById = (user, req, res, next) => {
     const { imdbID } = req.params;
     const fileName = `/${imdbID}_${user}.png`
 
-    res.sendFile(fileName, options, (e) => {
+    return res.sendFile(fileName, options, (e) => {
         if (e) {
             let error = new Error("Unable to retrieve poster for this movie!");
             error.statusCode = 400;
@@ -19,11 +26,18 @@ const getPosterById = (user, req, res, next) => {
             return;
         } else {
             console.log("Sent " + fileName);
-            next();
         }
     });
 }
 
+/**
+ *Adds poster image to movie that matches imdbID from request url
+ *
+ * @param {obj} user Value of user property from token in request header
+ * @param {obj} req The request object
+ * @param {obj} res The response object
+ * @param {obj} rnext Method to move to next middleware
+ */
 const addPosterToMovie = (user, req, res, next) => {
     const { imdbID } = req.params;
     // const user = getUser(req, res, next);
@@ -32,6 +46,7 @@ const addPosterToMovie = (user, req, res, next) => {
         let error = new Error("You must provide an imdb ID!");
         error.statusCode = 400;
         next(error);
+        return;
     }
 
     try {
@@ -40,8 +55,9 @@ const addPosterToMovie = (user, req, res, next) => {
                 let error = new Error(e.message);
                 error.status = 400;
                 next(error);
+                return;
             } else {
-                res.status(201).json({
+                return res.status(201).json({
                     "error": false,
                     "message": "Poster Uploaded Successfully"
                 });

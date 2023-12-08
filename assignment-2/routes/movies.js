@@ -14,6 +14,7 @@ router.get("/search", getMovieByTitle, (error, req, res, next) => {
   }
 
   console.log("Getting movie by title");
+  res.send();
 });
 
 
@@ -23,6 +24,7 @@ router.get("/data/:imdbID?", getMovieById, (error, req, res, next) => {
   }
 
   console.log("Getting movie by id");
+  res.send();
 });
 
 
