@@ -1,6 +1,6 @@
-var express = require("express");
-var router = express.Router();
-var { getMovieByTitle, getMovieById } = require("../middleware/movies.js")
+const express = require("express");
+const router = express.Router();
+const { getMovieByTitle, getMovieById } = require("../middleware/movies.js")
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -8,24 +8,10 @@ router.get('/', function(req, res, next) {
 });
 
 
-router.get("/search", getMovieByTitle, (error, req, res, next) => {
-  if (error) {
-    throw error;
-  }
-
-  console.log("Getting movie by title");
-  res.send();
-});
+router.get("/search", getMovieByTitle);
 
 
-router.get("/data/:imdbID?", getMovieById, (error, req, res, next) => {
-  if (error) {
-    throw error;
-  }
-
-  console.log("Getting movie by id");
-  res.send();
-});
+router.get("/data/:imdbID?", getMovieById);
 
 
 module.exports = router;

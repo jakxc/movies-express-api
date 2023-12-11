@@ -1,5 +1,23 @@
-var path = require("path");
-var { writeFile } = require("fs");
+const path = require("path");
+const jwt = require('jsonwebtoken');
+const { writeFile } = require("fs");
+
+/**
+ * Gets user property from token in request header
+ *
+ * @param {obj} req The request object
+ */
+const getUser = (req) => {  
+    try {
+      const token = req.headers.authorization.replace(/^Bearer /, "");
+      const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+      const user = decodedToken["email"] || "";
+  
+      return user;
+    } catch (e) {
+      throw e;
+    } 
+  }
 
 /**
  *Retrieves poster image of movie that matches imdbID from request url
@@ -9,25 +27,33 @@ var { writeFile } = require("fs");
  * @param {obj} res The response object
  * @param {obj} rnext Method to move to next middleware
  */
-const getPosterById = (user, req, res, next) => {
+const getPosterById = (req, res, next) => {
     const options = {
         root: path.join(__dirname, "../posters")
     };
 
-    // const user = getUser(req, res, next);
-    const { imdbID } = req.params;
-    const fileName = `/${imdbID}_${user}.png`
+    try {
+        const user = getUser(req);
+        const { imdbID } = req.params;
+        const fileName = `/${imdbID}_${user}.png`
 
-    return res.sendFile(fileName, options, (e) => {
-        if (e) {
-            let error = new Error("Unable to retrieve poster for this movie!");
-            error.statusCode = 400;
-            next(error);
-            return;
-        } else {
-            console.log("Sent " + fileName);
+        if (!imdbID) {
+            let error = new Error("You must provide an imdb ID!");
+            error.status = 400;
+            throw error;
         }
-    });
+        res.sendFile(fileName, options, (e) => {
+            if (e) {
+                let error = new Error("Unable to retrieve poster for this movie!");
+                next(error);
+                return;
+            } else {
+                console.log("Sent " + fileName);
+            }
+        });
+    } catch (e) {
+        next(e);
+    }
 }
 
 /**
@@ -38,18 +64,17 @@ const getPosterById = (user, req, res, next) => {
  * @param {obj} res The response object
  * @param {obj} rnext Method to move to next middleware
  */
-const addPosterToMovie = (user, req, res, next) => {
-    const { imdbID } = req.params;
-    // const user = getUser(req, res, next);
-
-    if (!imdbID) {
-        let error = new Error("You must provide an imdb ID!");
-        error.statusCode = 400;
-        next(error);
-        return;
-    }
-
+const addPosterToMovie = (req, res, next) => {
     try {
+        const { imdbID } = req.params;
+        const user = getUser(req);
+    
+        if (!imdbID) {
+            let error = new Error("You must provide an imdb ID!");
+            error.status = 400;
+            throw error;
+        }
+
         writeFile(`./posters/${imdbID}_${user}.png`, req.body, (e) => {
             if (e) {
                 let error = new Error(e.message);
@@ -64,9 +89,7 @@ const addPosterToMovie = (user, req, res, next) => {
             }
         });
     } catch (e) {
-        let error = new Error(e.message);
-        error.status = 500;
-        next(error);
+        next(e);
     }
 }
 

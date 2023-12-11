@@ -4,17 +4,9 @@ var express = require("express");
 const { handleRegister, handleLogin } = require("../middleware/auth.js");
 var router = express.Router();
 
-router.post('/register', handleRegister, (error, req, res, next) => {
-  if (error) {
-    throw error;
-  }
-});
+router.post('/register', handleRegister);
 
 /* POST user login */
-router.post('/login', handleLogin, function (error, req, res, next) {
-  if (error) {
-    throw error;
-  }
-});
+router.post('/login', handleLogin);
 
 module.exports = router;

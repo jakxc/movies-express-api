@@ -1,31 +1,21 @@
-var express = require("express");
+const express = require("express");
+const bodyParser = require("body-parser");
 const { handleAuthorization, getUser } = require("../middleware/auth.js");
 const { getPosterById, addPosterToMovie } = require("../middleware/posters.js");
-var router = express.Router();
-const bodyParser = require("body-parser");
+
+const router = express.Router();
 
 /* GET home page. */
 // router.get('/', function(req, res, next) {
 //   res.render('index', { title: 'Posters' });
 // });
 
-router.get("/:imdbID?", handleAuthorization, getUser, getPosterById, (error, req, res, next) => {
-  if (error) {
-    throw error;
-  }
-});
-
+router.get("/:imdbID?", handleAuthorization, getPosterById);
 
 router.post("/add/:imdbID?",
   handleAuthorization,
   bodyParser.raw({type: ["image/jpeg", "image/png"], limit: "5mb"}),
-  getUser,
-  addPosterToMovie,
-  (error, req, res, next) => {
-      if (error) {
-        throw error;
-      }
-});
-
+  addPosterToMovie
+);
 
 module.exports = router;

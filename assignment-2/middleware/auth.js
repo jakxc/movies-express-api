@@ -2,40 +2,49 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require("bcrypt");
 
 /**
+ * Handles verification of Bearer token
+ *
+ * @param {obj} token Bearer token to be verified
+ */
+const handleTokenVerification = (token) => {
+  try {
+    jwt.verify(token, process.env.JWT_SECRET);
+  } catch (e) {
+    if (e.name === "TokenExpiredError") {
+        let error = new Error("JWT token has expired");
+        error.status = 401;
+        throw error;
+    } else {
+        let error = new Error("Invalid JWT token");
+        error.status = 401;
+        throw error;
+    }
+  }
+}
+
+/**
  * Handles verification of Bearer authentication in request header
  *
  * @param {obj} req The request object
  * @param {obj} res The response object
- * @return {obj} next Method to move to next middleware
+ * @param {obj} next Method to move to next middleware
  */
 const handleAuthorization = (req, res, next) => {
+  try {
     if (!("authorization" in req.headers) || !req.headers.authorization.match(/^Bearer /)) {
-        let error = new Error("Authorization header ('Bearer token') not found");
-        error.status = 401;
-        next(error);
-        return;
+      let error = new Error("Authorization header ('Bearer token') not found");
+      error.status = 401;
+      throw error;
     }
 
     const token = req.headers.authorization.replace(/^Bearer /, "");
-    try {
-        jwt.verify(token, process.env.JWT_SECRET);
-    } catch (e) {
-        if (e.name === "TokenExpiredError") {
-            let error = new Error("JWT token has expired");
-            error.status = 401;
-            next(error);
-            return;
-        } else {
-            let error = new Error("Invalid JWT token");
-            error.status = 401;
-            next(error);
-            return;
-        }
+    handleTokenVerification(token);
+  } catch (e) {
+    next(e);
+    return;
+  }
 
-        return;
-    }
-
-    next();
+  next();
 };
 
 /**
@@ -43,27 +52,32 @@ const handleAuthorization = (req, res, next) => {
  *
  * @param {obj} req The request object
  * @param {obj} res The response object
- * @return {obj} next Method to move to next middleware
+ * @param {obj} next Method to move to next middleware
  */
 const handleRegister = async (req, res, next) => {
+  try {
     // Retrieve email and password from req.body
     const { email, password }  = req.body;
 
     // Verify body
     if (!email || !password) {
-        let error = new Error("Request body incomplete - email and password needed");
-        error.status = 400;
-        next(error);
-        return;
+      let error = new Error("Request body incomplete - email and password needed");
+      error.status = 400;
+      throw error;
     }
+
+  if (!/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
+    let error = new Error("Invalid email format!");
+    error.status = 400;
+    throw error;
+  }
 
     // Determine if user already exists in table
     const queryUsers = await req.db.from("users").select("*").where("email", "=", email);
     if (queryUsers.length > 0) {
             let error = new Error("User already exists");
             error.status = 409;
-            next(error);
-            return;
+            throw error;
     } else {
         // Insert user into DB
         const saltRounds = 10;
@@ -73,6 +87,9 @@ const handleRegister = async (req, res, next) => {
           return res.status(201).json({ success: true, message: "User created" });
       });
     }
+  } catch(e) {
+    next(e);
+  }
 }
 
 /**
@@ -80,77 +97,51 @@ const handleRegister = async (req, res, next) => {
  *
  * @param {obj} req The request object
  * @param {obj} res The response object
- * @return {obj} next Method to move to next middleware
+ * @param {obj} next Method to move to next middleware
  */
-const handleLogin = (req, res, next) => {  
-  const { email, password } = req.body;
+const handleLogin = async (req, res, next) => {  
+  try {
+    const { email, password } = req.body;
 
-  // Verify body
-  if (!email || !password) {
-    const error = new Error("Request body incomplete - email and password needed");
-    error.status = 400;
-    next(error);
-  }
+    // Verify body
+    if (!email || !password) {
+      const error = new Error("Request body incomplete - email and password needed");
+      error.status = 400;
+      throw error;
+    }
 
-  const queryUsers = req.db.from("users").select("*").where("email", "=", email);
-  queryUsers
-    .then(users => {
-      if (users.length === 0) {
-        const error = new Error("Incorrect email or password");
-        error.status = 401;
-        next(error);
-        return;
-      }
+    const queryUsers = await req.db.from("users").select("*").where("email", "=", email);
+    if (queryUsers.length === 0) {
+      const error = new Error("Incorrect email or password");
+      error.status = 401;
+      throw error;
+    }
 
-      // Compare password hashes
-      const user = users[0];
-      return bcrypt.compare(password, user.hash);
-    })
-    .then(match => {
-      if (!match) {
-        let error = new Error("Incorrect email or password");
-        error.status = 401;
-        next(error);
-        return;
-      }
-      console.log("Passwords match");
-      const expires_in = 60 * 60 * 24; // 24 hours
-      const exp = Math.floor(Date.now() / 1000) + expires_in;
-      const token = jwt.sign({ email, exp }, process.env.JWT_SECRET);
-      
-      return res.status(200).json({
-        token,
-        token_type: "Bearer",
-        expires_in
-      });
+    const user = queryUsers[0];
+    const userMatch = bcrypt.compare(password, user.hash);
+
+    if (!userMatch) {
+      let error = new Error("Incorrect email or password");
+      error.status = 401;
+      throw error;
+    }
+    console.log("Passwords match");
+    const expires_in = 60 * 60 * 24; // 24 hours
+    const exp = Math.floor(Date.now() / 1000) + expires_in;
+    const token = jwt.sign({ email, exp }, process.env.JWT_SECRET);
+    
+    return res.status(200).json({
+      token,
+      token_type: "Bearer",
+      expires_in
     });
-};
-
-/**
- * Gets user property from token in request header
- *
- * @param {obj} req The request object
- * @param {obj} res The response object
- * @return {obj} next Method to move to next middleware
- */
-const getUser = (req, res, next) => {  
-  const token = req.headers.authorization.replace(/^Bearer /, "");
-  const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-  const user = decodedToken["email"];
-  
-  if (!user) {
-    let error = new Error("Unable to retrieve user");
-    error.status = 500;
-    next(error);
-    return;
+  } catch(e) {
+    next(e);
   }
-
-  next(user);
 }
 
 module.exports = {
     handleAuthorization: handleAuthorization,
     handleRegister: handleRegister,
     handleLogin: handleLogin,
-    getUser: getUser
 }

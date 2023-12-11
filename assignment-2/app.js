@@ -1,15 +1,13 @@
-var createError = require("http-errors");
-var express = require("express");
-var path = require("path");
-var cookieParser = require("cookie-parser");
-var logger = require("morgan");
-
-var { errorLogger, errorResponder, invalidPathHandler } = require("./middleware/errors.js");
-var { getPosterById } = require("./middleware/posters.js");
-
+const createError = require("http-errors");
+const express = require("express");
+const path = require("path");
+const cookieParser = require("cookie-parser");
+const logger = require("morgan");
 const options = require("./knexfile.js");
 const knex = require("knex")(options);
 const cors = require('cors');
+
+const { errorLogger, errorResponder, invalidPathHandler } = require("./middleware/errors.js");
 
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
