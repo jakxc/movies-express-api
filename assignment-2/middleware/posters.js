@@ -1,6 +1,6 @@
 const path = require("path");
 const jwt = require('jsonwebtoken');
-const { writeFile } = require("fs");
+const { writeFile, existsSync } = require("fs");
 
 /**
  * Gets user property from token in request header
@@ -25,7 +25,7 @@ const getUser = (req) => {
  * @param {obj} user Value of user property from token in request header
  * @param {obj} req The request object
  * @param {obj} res The response object
- * @param {obj} rnext Method to move to next middleware
+ * @param {obj} next Method to move to next middleware
  */
 const getPosterById = (req, res, next) => {
     const options = {
@@ -33,15 +33,24 @@ const getPosterById = (req, res, next) => {
     };
 
     try {
-        const user = getUser(req);
         const { imdbID } = req.params;
-        const fileName = `/${imdbID}_${user}.png`
-
+        const query = req.query;
+        const user = getUser(req);
+        const fileName = `/${imdbID}_${user}.png`;
+        const invalidQueries = Object.keys(query); 
+    
         if (!imdbID) {
             let error = new Error("You must provide an imdb ID!");
             error.status = 400;
             throw error;
         }
+        // console.log("Number of querues: " + Object.keys(query).length);
+        if (invalidQueries.length) {
+            let error = new Error(`Invalid query parameters: ${invalidQueries.join(", ")}. Query parameters are not permitted.`);
+            error.status = 400;
+            throw error;
+        }
+
         res.sendFile(fileName, options, (e) => {
             if (e) {
                 let error = new Error("Unable to retrieve poster for this movie!");
@@ -62,20 +71,35 @@ const getPosterById = (req, res, next) => {
  * @param {obj} user Value of user property from token in request header
  * @param {obj} req The request object
  * @param {obj} res The response object
- * @param {obj} rnext Method to move to next middleware
+ * @param {obj} next Method to move to next middleware
  */
 const addPosterToMovie = (req, res, next) => {
     try {
         const { imdbID } = req.params;
+        const query = req.query;
         const user = getUser(req);
+        const fileName = `./posters/${imdbID}_${user}.png`;
+        const invalidQueries = Object.keys(query); 
     
         if (!imdbID) {
             let error = new Error("You must provide an imdb ID!");
             error.status = 400;
             throw error;
         }
+        // console.log("Number of querues: " + Object.keys(query).length);
+        if (invalidQueries.length) {
+            let error = new Error(`Invalid query parameters: ${invalidQueries.join(", ")}. Query parameters are not permitted.`);
+            error.status = 400;
+            throw error;
+        }
 
-        writeFile(`./posters/${imdbID}_${user}.png`, req.body, (e) => {
+        if (existsSync(fileName)) {
+            let error = new Error("Poster for this movie already exists!");
+            error.status = 409;
+            throw error;
+        }
+
+        writeFile(fileName, req.body, (e) => {
             if (e) {
                 let error = new Error(e.message);
                 error.status = 400;

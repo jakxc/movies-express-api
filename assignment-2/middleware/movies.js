@@ -3,7 +3,7 @@
  *
  * @param {obj} req The request object
  * @param {obj} res The response object
- * @param {obj} rnext Method to move to next middleware
+ * @param {obj} next Method to move to next middleware
  */
 const getMovieByTitle = async (req, res, next) => {
     try {
@@ -35,12 +35,12 @@ const getMovieByTitle = async (req, res, next) => {
         }
     
         if (page && !parseInt(page)) {
-            let error = new Error("Invalid page format!");
+            let error = new Error("Invalid page format! Format must be a number");
             error.status = 400;
             throw error;
         }
         
-        const totalCount = await req.db("basics")
+        const countObj = await req.db("basics")
         .where((builder) => {
             if (title) {
                 builder.where("primaryTitle", "like", `%${title}%`);
@@ -51,7 +51,8 @@ const getMovieByTitle = async (req, res, next) => {
             }
         })
         .count("tconst as count")
-        .then(res => res.reduce((acc, curr) => acc + curr.count, 0));
+
+        const totalCount = countObj.map(el => el["count"]).reduce((acc, curr) => acc + curr, 0);
 
         const pageResults = await req.db("basics")
         .where((builder) => {
@@ -80,7 +81,7 @@ const getMovieByTitle = async (req, res, next) => {
             "total": totalCount,
             "lastPage": Math.ceil(totalCount / limit),
             "perPage": limit,
-            "currentPage": page,
+            "currentPage": parseInt(page),
             "from": Math.min((page - 1) * limit, totalCount),
             "to": Math.min(page * limit, totalCount)
         }
@@ -99,13 +100,13 @@ const getMovieByTitle = async (req, res, next) => {
  *
  * @param {obj} req The request object
  * @param {obj} res The response object
- * @param {obj} rnext Method to move to next middleware
+ * @param {obj} next Method to move to next middleware
  */
 const getMovieById = async (req, res, next)  => {
     try {
         const { imdbID } = req.params;
         const query = req.query;
-        const invalidQueries = Object.keys(query).filter(el => el !== "imdbID"); 
+        const invalidQueries = Object.keys(query); 
     
         if (!imdbID) {
             let error = new Error("You must provide an imdb ID!");
@@ -120,24 +121,21 @@ const getMovieById = async (req, res, next)  => {
             throw error;
         }
 
-        const combinedResults = await req.db("basics")
+        const basicsResults = await req.db("basics")
         .select("*")
         .where((builder) => {
             if (imdbID) {
                 builder.where("tconst", "=", imdbID);
             }
         })
-        .then((rows) => {
-            const mappedData = rows.map(row => {
-                return {
-                    "Title": row["primaryTitle"],
-                    "Year": row["startYear"],
-                    "Runtime": `${row["runtimeMinutes"]}${parseInt(row["runtimeMinutes"]) > 1 ? " mins" : " min" }`,
-                    "Genre": row["genres"]
-                }
-            })
 
-            return mappedData;
+        const combinedResults = basicsResults.map(row => {
+            return {
+                "Title": row["primaryTitle"],
+                "Year": row["startYear"],
+                "Runtime": `${row["runtimeMinutes"]}${parseInt(row["runtimeMinutes"]) > 1 ? " mins" : " min" }`,
+                "Genre": row["genres"]
+            }
         })
 
         const basicsAndPrincipalsResults = await req.db("principals")
@@ -146,7 +144,16 @@ const getMovieById = async (req, res, next)  => {
         .where("principals.tconst", "=", imdbID)
 
         basicsAndPrincipalsResults.forEach(row => {
-            const category = row["category"][0].toUpperCase() + row["category"].slice(1);
+            let category = row["category"];
+            switch (category) {
+                case "actress":
+                    category = "Actresses";
+                    break;
+                default:
+                    category = row["category"][0].toUpperCase() + row["category"].slice(1) + "s";
+                    break;
+            }
+
             combinedResults.map(el => {
                 el[category] ?  el[category] += `,${row["primaryName"]}` 
                 : el[category] = row["primaryName"];
