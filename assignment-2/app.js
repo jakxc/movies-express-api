@@ -9,12 +9,12 @@ const cors = require('cors');
 
 const { errorLogger, errorResponder, invalidPathHandler } = require("./middleware/errors.js");
 
-var indexRouter = require("./routes/index");
-var usersRouter = require("./routes/users");
-var moviesRouter = require("./routes/movies");
-var postersRouter = require("./routes/posters");
+const indexRouter = require("./routes/index");
+const usersRouter = require("./routes/users");
+const moviesRouter = require("./routes/movies");
+const postersRouter = require("./routes/posters");
 
-var app = express();
+const app = express();
 
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
@@ -50,7 +50,6 @@ app.get("/knex", function (req, res, next) {
 
     res.send("Version Logged successfully");
 });
-
 
 // Console logs the error
 app.use(errorLogger);

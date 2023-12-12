@@ -83,7 +83,13 @@ const getMovieByTitle = async (req, res, next) => {
             "perPage": limit,
             "currentPage": parseInt(page),
             "from": Math.min((page - 1) * limit, totalCount),
-            "to": Math.min(page * limit, totalCount)
+            "to": Math.min(page * limit, totalCount),
+            "prev": parseInt(page) <= 1 
+            ? null
+            : `http://localhost:3000/movies/search?title=${title}${year ? `&${year}` : ""}&page=${parseInt(page) - 1}`,
+            "next": parseInt(page) >= Math.ceil(totalCount / limit) 
+            ? null 
+            : `http://localhost:3000/movies/search?title=${title}${year ? `&${year}` : ""}&page=${parseInt(page) + 1}`
         }
 
         return res.json({ 

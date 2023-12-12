@@ -14,9 +14,11 @@ const errorLogger = (error, req, res, next) => {
  * @param {obj} next Method to move to next middleware
  */
 const errorResponder = (error, req, res, next) => {    
-  const status = error.status || 500
-  res.status(status).json({error: true, message: error.message})
-  return;
+  const status = error.status || 500;
+  return res.status(status).json({error: true, message: status === 500 
+    ? "The server encountered an error and could not complete the request." 
+    : error.message
+  })
 }
   
 /**
