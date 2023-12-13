@@ -5,8 +5,9 @@ const cookieParser = require("cookie-parser");
 const logger = require("morgan");
 const options = require("./knexfile.js");
 const knex = require("knex")(options);
-const cors = require('cors');
-const bodyParser = require('body-parser');
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const helmet = require("helmet");
 
 const { errorLogger, errorResponder, invalidPathHandler } = require("./middleware/errors.js");
 
@@ -29,6 +30,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.static(__dirname));
+app.use(helmet());
 
 app.use((req, res, next) => {
     req.db = knex;
@@ -39,7 +41,6 @@ app.use("/", indexRouter);
 app.use("/user", usersRouter);
 app.use("/movies", moviesRouter,);
 app.use("/posters", postersRouter);
-
 
 app.get("/knex", function (req, res, next) {
     req.db

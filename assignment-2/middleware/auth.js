@@ -102,8 +102,6 @@ const handleRegister = async (req, res, next) => {
 const handleLogin = async (req, res, next) => {  
   try {
     const { email, password } = req.body;
-    const user = queryUsers[0];
-    const passwordMatch = bcrypt.compare(password, user.hash);
 
     // Verify body
     if (!email || !password) {
@@ -112,12 +110,17 @@ const handleLogin = async (req, res, next) => {
       throw error;
     }
 
+
     const queryUsers = await req.db.from("users").select("*").where("email", "=", email);
+
     if (queryUsers.length === 0) {
       const error = new Error("Incorrect email or password");
       error.status = 401;
       throw error;
     }
+
+    const user = queryUsers[0];
+    const passwordMatch = bcrypt.compare(password, user.hash);
 
     if (!passwordMatch) {
       let error = new Error("Incorrect email or password");
