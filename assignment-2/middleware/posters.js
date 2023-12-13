@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const { writeFile, existsSync } = require("fs");
 
 /**
- * Gets user property from token in request header
+ * Utility function that retrieves user property from token in request header
  *
  * @param {obj} req The request object
  */
@@ -17,12 +17,11 @@ const getUser = (req) => {
     } catch (e) {
       throw e;
     } 
-  }
+}
 
 /**
  *Retrieves poster image of movie that matches imdbID from request url
  *
- * @param {obj} user Value of user property from token in request header
  * @param {obj} req The request object
  * @param {obj} res The response object
  * @param {obj} next Method to move to next middleware
@@ -68,18 +67,22 @@ const getPosterById = (req, res, next) => {
 /**
  *Adds poster image to movie that matches imdbID from request url
  *
- * @param {obj} user Value of user property from token in request header
  * @param {obj} req The request object
  * @param {obj} res The response object
  * @param {obj} next Method to move to next middleware
  */
-const addPosterToMovie = (req, res, next) => {
+const addPosterToMovie = async (req, res, next) => {
+    const { fileTypeFromBuffer } = await import('file-type');
+    console.log(req.body);
+
     try {
         const { imdbID } = req.params;
         const query = req.query;
         const user = getUser(req);
         const fileName = `./posters/${imdbID}_${user}.png`;
         const invalidQueries = Object.keys(query); 
+        // const fileType = await fileTypeFromBuffer(req.body);
+        // const imgExtRegex = new RegExp(/(jpg|jpeg|png|JPG|JPEG|PNG)$/);
     
         if (!imdbID) {
             let error = new Error("You must provide an imdb ID!");
@@ -92,6 +95,12 @@ const addPosterToMovie = (req, res, next) => {
             error.status = 400;
             throw error;
         }
+            
+        // if(!imgExtRegex.test(fileType["ext"])) {
+        //     let error = new Error("Incorrect file type!");
+        //     error.status = 400;
+        //     throw error;
+        // }
 
         if (existsSync(fileName)) {
             let error = new Error("Poster for this movie already exists!");
@@ -99,6 +108,7 @@ const addPosterToMovie = (req, res, next) => {
             throw error;
         }
 
+        
         writeFile(fileName, req.body, (e) => {
             if (e) {
                 let error = new Error(e.message);

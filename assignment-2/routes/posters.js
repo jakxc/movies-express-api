@@ -1,6 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const { handleAuthorization, getUser } = require("../middleware/auth.js");
+const { handleAuthorization } = require("../middleware/auth.js");
 const { getPosterById, addPosterToMovie } = require("../middleware/posters.js");
 
 const router = express.Router();

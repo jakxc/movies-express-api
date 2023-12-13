@@ -6,6 +6,7 @@ const logger = require("morgan");
 const options = require("./knexfile.js");
 const knex = require("knex")(options);
 const cors = require('cors');
+const bodyParser = require('body-parser');
 
 const { errorLogger, errorResponder, invalidPathHandler } = require("./middleware/errors.js");
 
@@ -24,6 +25,7 @@ app.use(cors());
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.static(__dirname));

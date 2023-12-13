@@ -102,6 +102,8 @@ const handleRegister = async (req, res, next) => {
 const handleLogin = async (req, res, next) => {  
   try {
     const { email, password } = req.body;
+    const user = queryUsers[0];
+    const passwordMatch = bcrypt.compare(password, user.hash);
 
     // Verify body
     if (!email || !password) {
@@ -117,10 +119,7 @@ const handleLogin = async (req, res, next) => {
       throw error;
     }
 
-    const user = queryUsers[0];
-    const userMatch = bcrypt.compare(password, user.hash);
-
-    if (!userMatch) {
+    if (!passwordMatch) {
       let error = new Error("Incorrect email or password");
       error.status = 401;
       throw error;
